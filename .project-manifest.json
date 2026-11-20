@@ -513,6 +513,27 @@
       "success": "外部文档流验证后整批导入",
       "failure": "重复键整体拒绝",
       "verification": "python3 -m examples.workflows transfer"
+    },
+    {
+      "id": "verify",
+      "name": "增量一致性校验",
+      "entry": "Database.verify_peer",
+      "module_ids": [
+        "inspect",
+        "replica",
+        "snapshot",
+        "codec",
+        "cursor",
+        "storage"
+      ],
+      "steps": [
+        "输入校验与读取已有事实",
+        "跨句柄协商可比读修订并按集合与键区间逐键比较",
+        "形成可观察结果"
+      ],
+      "success": "定位缺失、多余、内容与删除状态差异并说明历史回收范围，给出补追赶或重建的判断",
+      "failure": "无共同可读修订、范围外修订或外来续查令牌拒绝",
+      "verification": "python3 -m examples.workflows verify"
     }
   ],
   "complexity": {

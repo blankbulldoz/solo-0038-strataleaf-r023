@@ -65,6 +65,10 @@
       "command": "python3 -m examples.workflows inspect"
     },
     {
+      "workflow_id": "verify",
+      "command": "python3 -m examples.workflows verify"
+    },
+    {
       "workflow_id": "transfer",
       "command": "python3 -m examples.workflows transfer"
     }

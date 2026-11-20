@@ -46,6 +46,10 @@ class Database:
     def patch(self, collection, key, patch, expected=None):
         return patch_document(self._store, collection, key, patch, expected)
 
+    def verify_peer(self, peer, **options):
+        """Scoped, revision-negotiated content comparison against another handle."""
+        return self.diagnostics.verify_peer(peer, **options)
+
     def checkpoint(self):
         return self._store.checkpoint()
 

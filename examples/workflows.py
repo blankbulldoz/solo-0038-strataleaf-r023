@@ -132,6 +132,34 @@ def run(flow):
                 result = db.patch("segments", "seg_00", {"code": None, "detail": {"block": 4}}, expected=first)
                 output = {"patch": result.__dict__, "document": db.get("segments", "seg_00").document,
                           "stale": rejected(lambda: db.patch("segments", "seg_00", {"sequence": 8}, expected=first), Conflict)}
+            elif flow == "verify":
+                db.archives.backup(folder / "verify_base.db")
+                Archives.restore(folder / "verify_base.db", folder / "verify_replica.db", follower=True)
+                db.batch().put("segments", "seg_00", {"region": "north", "sequence": 40}).commit()
+                db.batch().delete("segments", "seg_01").commit()
+                with Database(folder / "verify_replica.db") as replica:
+                    db.batch().put("segments", "seg_02", {"region": "east", "sequence": 22}).commit()
+                    caught_up = db.verify_peer(replica)
+                    first = db.verify_peer(replica, collections=["segments"], start="seg_00",
+                                           end="seg_04", limit=2)
+                    pages = first["examined"]
+                    token = first["continue_token"]
+                    last_page = first
+                    while token:
+                        last_page = db.verify_peer(replica, position=token, limit=2)
+                        pages += last_page["examined"]
+                        token = last_page["continue_token"]
+                    replica.replication.apply(db.replication.export(replica.revision))
+                    aligned = db.verify_peer(replica)
+                    output = {"behind": caught_up, "scoped_first_page": first,
+                              "scoped_last_page": last_page, "scoped_keys_examined": pages,
+                              "after_catch_up": aligned}
+                    if aligned["content_equal"] is not True or not aligned["consistent"]:
+                        raise RuntimeError("caught-up replica was not proven equal")
+                    if caught_up["revision_heads_equal"] or caught_up["decision"]["action"] != "catch_up":
+                        raise RuntimeError("a lagging replica must be reported as catch_up-able")
+                    if last_page["run"]["examined"] != pages or pages != 4:
+                        raise RuntimeError("paginated verification did not accumulate its run facts")
             elif flow == "inspect":
                 db.indexes.create("segments", "by_code", "code")
                 output = {"inspection": db.diagnostics.inspect(deep=True), "fingerprint": db.diagnostics.fingerprint(), "checkpoint": db.checkpoint()}
